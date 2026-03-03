@@ -1,29 +1,212 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxC0b9N7Ai1gpZBiKki_80A4_Eaj3aB6EkD0xqyi4tCYNLQWnoElfjbtjav7QSE0u3WGw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx-sv0nQvzxMgXY37J_UKTGFyHymMOX7RTREgUoDXSUC5o7PE_yIualu2uqS4CSUhkl/exec";
 
 // DOM Elements
 const scoreForm = document.getElementById('score-form');
 const leaderboardList = document.getElementById('leaderboard-list');
-const tabs = document.querySelectorAll('.tab-btn');
-const tabContents = document.querySelectorAll('.tab-content');
+
+// --- Dashboard Elements ---
+const dashboardView = document.getElementById('dashboard-view');
+const managerView = document.getElementById('manager-view');
+const boardsList = document.getElementById('boards-list');
+const createBoardForm = document.getElementById('create-board-form');
+const currentBoardTitle = document.getElementById('current-board-title');
+const backBtn = document.getElementById('back-to-dashboard');
+
+let currentBoard = null;
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
-    fetchLeaderboard();
+    // Check if we are on the dashboard/manager page
+    if (dashboardView && managerView) {
+        fetchBoards();
+
+        // Bind Create Form
+        if (createBoardForm) {
+            createBoardForm.addEventListener('submit', handleCreateBoard);
+        }
+
+        // Bind Back Button
+        if (backBtn) {
+            backBtn.addEventListener('click', showDashboard);
+        }
+
+        // Bind Open Live View Button
+        const openLiveBtn = document.getElementById('open-live-view');
+        if (openLiveBtn) {
+            openLiveBtn.addEventListener('click', () => {
+                if (currentBoard) {
+                    window.open(`leaderboard.html?board=${encodeURIComponent(currentBoard)}`, '_blank');
+                }
+            });
+        }
+    } else {
+        // We are probably on the public leaderboard.html display page
+        // Check for URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestedBoard = urlParams.get('board');
+
+        if (requestedBoard) {
+            currentBoard = requestedBoard;
+            // Optionally update title if element exists
+            const headerTitle = document.querySelector('header h1');
+            if (headerTitle) {
+                headerTitle.innerText = requestedBoard;
+            }
+            fetchLeaderboard();
+        } else {
+            // No board specified on display page
+            if (leaderboardList) {
+                leaderboardList.innerHTML = '<div class="loading">Please provide a ?board=Name in the URL to view a leaderboard.</div>';
+            }
+        }
+    }
 });
 
-// Tab Switching Logic Removed
+// --- Dashboard Logic ---
+
+function showDashboard() {
+    dashboardView.style.display = 'block';
+    managerView.style.display = 'none';
+    currentBoard = null;
+    fetchBoards(); // Refresh list when going back
+}
+
+function showManager(boardName) {
+    currentBoard = boardName;
+    currentBoardTitle.innerText = boardName;
+    dashboardView.style.display = 'none';
+    managerView.style.display = 'block';
+    resetFormState();
+    fetchLeaderboard();
+}
+
+async function fetchBoards() {
+    if (!boardsList) return;
+    boardsList.innerHTML = '<div class="loading">Loading your leaderboards...</div>';
+
+    try {
+        const response = await fetch(`${API_URL}?action=list_boards`);
+        const data = await response.json();
+
+        if (data.boards) {
+            renderBoards(data.boards);
+        } else {
+            boardsList.innerHTML = '<div class="loading">No boards found.</div>';
+        }
+    } catch (error) {
+        console.error("Error fetching boards:", error);
+        boardsList.innerHTML = '<div class="loading">Failed to load leaderboards.</div>';
+    }
+}
+
+function renderBoards(boards) {
+    if (boards.length === 0) {
+        boardsList.innerHTML = '<div class="loading">No leaderboards yet. Create one below!</div>';
+        return;
+    }
+
+    boardsList.innerHTML = '';
+    boards.forEach(boardName => {
+        const card = document.createElement('div');
+        card.className = 'board-card';
+        card.innerHTML = `
+            <div class="board-title">${escapeHtml(boardName)}</div>
+            <div class="note" style="margin-top: 5px;">Click to manage</div>
+            <button class="board-delete-btn" title="Delete Board" onclick="event.stopPropagation(); deleteBoard('${escapeHtml(boardName).replace(/'/g, "\\'")}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
+        `;
+        card.addEventListener('click', () => showManager(boardName));
+        boardsList.appendChild(card);
+    });
+}
+
+async function handleCreateBoard(e) {
+    e.preventDefault();
+    const input = document.getElementById('new-board-name');
+    const boardName = input.value.trim();
+    if (!boardName) return;
+
+    const btn = document.getElementById('create-board-btn');
+    const originalText = btn.innerText;
+    btn.innerText = "Creating...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'create_board', board: boardName })
+        });
+
+        // Optimistically wait and refresh
+        setTimeout(() => {
+            input.value = '';
+            btn.innerText = originalText;
+            btn.disabled = false;
+            fetchBoards();
+        }, 1500);
+
+    } catch (error) {
+        console.error(error);
+        alert("Failed to create board");
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function deleteBoard(boardName) {
+    if (confirm(`CRITICAL WARNING: Are you sure you want to PERMANENTLY DELETE the entire "${boardName}" leaderboard? This cannot be undone.`)) {
+        boardsList.innerHTML = `<div class="loading">Deleting ${escapeHtml(boardName)}...</div>`;
+
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'delete_board', board: boardName })
+            });
+            setTimeout(fetchBoards, 1500);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to delete board");
+            fetchBoards();
+        }
+    }
+}
+
+// --- Specific Board Logic ---
 
 // Fetch and Render Leaderboard
 async function fetchLeaderboard() {
-    if (!leaderboardList) return; // Guard against missing element
-    leaderboardList.innerHTML = '<div class="loading">Refreshing scores...</div>';
+    if (!leaderboardList || !currentBoard) return;
+
+    // Only show loading if the list is completely empty, to avoid flashing on auto-refresh
+    if (leaderboardList.innerHTML.trim() === '' || leaderboardList.innerHTML.includes('No scores yet') || leaderboardList.innerHTML.includes('Loading scores')) {
+        leaderboardList.innerHTML = '<div class="loading">Refreshing scores...</div>';
+    }
 
     try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
+        const url = `${API_URL}?board=${encodeURIComponent(currentBoard)}`;
+        const response = await fetch(url);
 
-        // Data is expected to be an array of objects, e.g., [{name: "A", score: 10}, {name: "A", score: 5}]
-        // We need to aggregate by name.
+        // Handle no-cors or other silent body issues gracefully
+        const textData = await response.text();
+        let data = [];
+        try {
+            data = JSON.parse(textData);
+        } catch (e) {
+            console.warn("Could not parse JSON. Probably opaque no-cors response. Expected for display.");
+            return;
+        }
+
+        if (data.error) {
+            leaderboardList.innerHTML = `<div class="loading error">${escapeHtml(data.error)}</div>`;
+            return;
+        }
+
+        // Data is expected to be an array of objects
         const aggregatedScores = {};
         const aggregatedEmblems = {};
 
@@ -79,8 +262,6 @@ async function fetchLeaderboard() {
     } catch (error) {
         console.error("Error fetching data:", error);
         leaderboardList.innerHTML = '<div class="loading">Failed to load scores. Please try again.</div>';
-        const adminList = document.getElementById('admin-player-list');
-        if (adminList) adminList.innerHTML = '<div class="loading">Failed to load list.</div>';
     }
 }
 
@@ -88,7 +269,7 @@ function renderLeaderboard(players, editable = false) {
     if (!leaderboardList) return;
 
     if (players.length === 0) {
-        leaderboardList.innerHTML = '<div class="loading">No scores yet. Be the first!</div>';
+        leaderboardList.innerHTML = '<div class="loading">No scores yet in this leaderboard.</div>';
         return;
     }
 
@@ -104,8 +285,6 @@ function renderLeaderboard(players, editable = false) {
 
         let actionsHtml = '';
         if (editable) {
-            // Using data attributes for event delegation
-            // We need to ensure we don't break HTML with quotes in names
             // Simple escape for attribute: convert " to &quot;
             const safeName = escapeHtml(player.name).replace(/"/g, '&quot;');
 
@@ -177,16 +356,18 @@ let currentEmblemTarget = '';
 window.openEmblemModal = (name) => {
     currentEmblemTarget = name;
     document.getElementById('modal-player-name').innerText = name;
-    document.getElementById('emblem-modal').style.display = 'flex';
+    const modal = document.getElementById('emblem-modal');
+    if (modal) modal.style.display = 'flex';
 };
 
 window.closeEmblemModal = () => {
     currentEmblemTarget = '';
-    document.getElementById('emblem-modal').style.display = 'none';
+    const modal = document.getElementById('emblem-modal');
+    if (modal) modal.style.display = 'none';
 };
 
 window.submitEmblem = async (emblem) => {
-    if (!currentEmblemTarget) return;
+    if (!currentEmblemTarget || !currentBoard) return;
     const name = currentEmblemTarget;
 
     // Close modal immediately
@@ -200,7 +381,7 @@ window.submitEmblem = async (emblem) => {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ name: name, emblem: emblem, action: 'add_emblem' })
+            body: JSON.stringify({ board: currentBoard, name: name, emblem: emblem, action: 'add_emblem' })
         });
 
         // Loop refresh
@@ -214,7 +395,8 @@ window.submitEmblem = async (emblem) => {
 };
 
 async function deletePlayer(name, btnElement) {
-    if (confirm(`Are you sure you want to PERMANENTLY DELETE "${name}"?`)) {
+    if (!currentBoard) return;
+    if (confirm(`Are you sure you want to PERMANENTLY DELETE "${name}" from ${currentBoard}?`)) {
 
         // UI Feedback
         const originalContent = btnElement.innerHTML;
@@ -226,7 +408,7 @@ async function deletePlayer(name, btnElement) {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ name: name, score: 0, action: 'delete' })
+                body: JSON.stringify({ board: currentBoard, name: name, score: 0, action: 'delete' })
             });
 
             // Refresh
@@ -281,11 +463,17 @@ window.resetFormState = () => {
     currentAction = 'add';
     editingPlayerScore = 0;
     const btn = document.getElementById('add-btn');
-    btn.innerText = "Add to Score (+)";
-    btn.classList.remove('set-mode-active');
-    document.querySelector('.form-card').style.borderColor = 'var(--glass-border)';
-    document.getElementById('player-name').value = '';
-    document.getElementById('player-score').value = '';
+    if (btn) {
+        btn.innerText = "Add to Score (+)";
+        btn.classList.remove('set-mode-active');
+    }
+    const fc = document.querySelector('.form-card');
+    if (fc) fc.style.borderColor = 'var(--glass-border)';
+
+    const pName = document.getElementById('player-name');
+    if (pName) pName.value = '';
+    const pScore = document.getElementById('player-score');
+    if (pScore) pScore.value = '';
 };
 
 if (scoreForm) {
@@ -307,6 +495,10 @@ if (scoreForm) {
             alert("Please enter a valid score.");
             return;
         }
+        if (!currentBoard) {
+            alert("No board selected.");
+            return;
+        }
 
         // Lock UI
         const originalText = primaryBtn.innerText;
@@ -319,10 +511,7 @@ if (scoreForm) {
 
             if (currentAction === 'set') {
                 // Calculate difference: Target - Current
-                // Example: Current 10. Target 50. Diff 40. New Total = 10 + 40 = 50.
                 finalScorePayload = inputScore - editingPlayerScore;
-
-                // Edge case: If I type the same number, diff is 0.
             }
 
             await fetch(API_URL, {
@@ -331,7 +520,7 @@ if (scoreForm) {
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8',
                 },
-                body: JSON.stringify({ name, score: finalScorePayload, action: currentAction })
+                body: JSON.stringify({ board: currentBoard, name, score: finalScorePayload, action: currentAction })
             });
 
             primaryBtn.innerText = "Success!";
@@ -358,6 +547,7 @@ if (scoreForm) {
 
 // Helper XSS prevention
 function escapeHtml(text) {
+    if (!text) return "";
     const div = document.createElement('div');
     div.innerText = text;
     return div.innerHTML;

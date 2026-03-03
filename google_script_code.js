@@ -1,9 +1,36 @@
 function doGet(e) {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // Action: list_boards
+    if (e.parameter.action === 'list_boards') {
+        var sheets = ss.getSheets();
+        var boardNames = [];
+        for (var i = 0; i < sheets.length; i++) {
+            boardNames.push(sheets[i].getName());
+        }
+        return ContentService.createTextOutput(JSON.stringify({ boards: boardNames }))
+            .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Default GET: Fetch board data
+    var boardName = e.parameter.board;
+    var sheet;
+    
+    if (boardName) {
+        sheet = ss.getSheetByName(boardName);
+    } else {
+        sheet = ss.getActiveSheet(); // fallback
+    }
+    
+    if (!sheet) {
+         return ContentService.createTextOutput(JSON.stringify({ error: "Board not found." }))
+            .setMimeType(ContentService.MimeType.JSON);
+    }
+
     var data = sheet.getDataRange().getValues();
     var result = [];
 
-    // Skip header row
+    // Skip header row if it exists, but typically we just read from row 2
     for (var i = 1; i < data.length; i++) {
         if (data[i][0]) { // If name exists
             result.push({
@@ -23,7 +50,7 @@ function doPost(e) {
     lock.tryLock(10000);
 
     try {
-        var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+        var ss = SpreadsheetApp.getActiveSpreadsheet();
         var data;
 
         try {
@@ -32,9 +59,57 @@ function doPost(e) {
             data = e.parameter;
         }
 
+        var action = data.action || 'add';
+        var boardName = data.board;
+        var sheet;
+        
+        // --- Dashboard Actions ---
+        if (action === 'create_board') {
+            if (!boardName) throw new Error("No board name provided.");
+            if (ss.getSheetByName(boardName)) {
+                 return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Board already exists." }))
+                    .setMimeType(ContentService.MimeType.JSON);
+            }
+            sheet = ss.insertSheet(boardName);
+            // Setup headers
+            sheet.appendRow(["Player Name", "Score", "Emblems"]);
+            sheet.getRange("A1:C1").setFontWeight("bold");
+            
+            return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "create_board", board: boardName }))
+                .setMimeType(ContentService.MimeType.JSON);
+        }
+        
+        if (action === 'delete_board') {
+            if (!boardName) throw new Error("No board name provided.");
+            sheet = ss.getSheetByName(boardName);
+            if (!sheet) throw new Error("Board not found.");
+            
+            // Prevent deleting the very last sheet
+            if (ss.getSheets().length <= 1) {
+                return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Cannot delete the only remaining board." }))
+                    .setMimeType(ContentService.MimeType.JSON);
+            }
+            
+            ss.deleteSheet(sheet);
+            return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "delete_board", board: boardName }))
+                .setMimeType(ContentService.MimeType.JSON);
+        }
+        // -------------------------
+
+        // Obtain Sheet Context for standard actions
+        if (boardName) {
+            sheet = ss.getSheetByName(boardName);
+        } else {
+            sheet = ss.getActiveSheet();
+        }
+        
+        if (!sheet) {
+            return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Board not found" }))
+                .setMimeType(ContentService.MimeType.JSON);
+        }
+
         var name = data.name;
         var score = parseInt(data.score) || 0; // Default 0 for emblem-only adds
-        var action = data.action || 'add';
         var emblem = data.emblem || "";
 
         if (!name) {
@@ -105,8 +180,6 @@ function doPost(e) {
 
         else if (action === 'add_emblem') {
             // Update Strategy: Append a new row with the emblem and NO score.
-            // This ensures we do not accidentally delete/modify existing score rows.
-            // script.js aggregates this correctly.
             sheet.appendRow([targetName, "", emblem]);
 
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "add_emblem", emblem: emblem }))

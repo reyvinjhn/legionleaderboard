@@ -65,7 +65,12 @@
     <script src="script.js"></script>
     <script>
         // Auto-refresh every 10 seconds for the display page
-        setInterval(fetchLeaderboard, 10000);
+        setInterval(() => {
+            // Only refresh if a board is actually selected/found in URL
+            if (currentBoard) {
+                fetchLeaderboard();
+            }
+        }, 10000);
     </script>
 </body>
 

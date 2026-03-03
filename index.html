@@ -18,42 +18,91 @@
         </header>
 
         <main>
-            <!-- Input Form -->
-            <section id="input" class="content-section">
+            <!-- Dashboard View -->
+            <section id="dashboard-view" class="content-section">
                 <div class="form-card">
-                    <h2>Manage Scores</h2>
-                    <form id="score-form">
-                        <div class="input-group">
-                            <label for="player-name">Player Name</label>
-                            <input type="text" id="player-name" placeholder="Enter name" required autocomplete="off">
-                        </div>
-                        <div class="input-group">
-                            <label for="player-score">Score</label>
-                            <input type="number" id="player-score" placeholder="0" required>
-                        </div>
-                        <div class="actions">
-                            <button type="submit" id="add-btn" class="primary-btn" onclick="setAction('add')">Add to
-                                Score (+)</button>
-                        </div>
-                        <p class="note">Enter a name and score. If the player exists, the score will be added to their
-                            total.</p>
-                    </form>
+                    <h2>Your Leaderboards</h2>
+                    <p class="note" style="margin-bottom: 20px;">Select a leaderboard to manage scores, or create a new
+                        one.</p>
+
+                    <div id="boards-list" class="boards-grid">
+                        <div class="loading">Loading boards...</div>
+                    </div>
+
+                    <div style="margin-top: 30px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+                        <h3>Create New Leaderboard</h3>
+                        <form id="create-board-form" style="display: flex; gap: 10px; margin-top: 10px;">
+                            <input type="text" id="new-board-name" placeholder="E.g., Season 1, Alpha Edition..."
+                                required autocomplete="off"
+                                style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--glass-bg); color: var(--text-color);">
+                            <button type="submit" id="create-board-btn" class="primary-btn"
+                                style="width: auto;">Create</button>
+                        </form>
+                    </div>
                 </div>
             </section>
 
-            <!-- Leaderboard -->
-            <section id="leaderboard" class="content-section">
-                <div class="leaderboard-header editable">
-                    <span>Rank</span>
-                    <span>Player</span>
-                    <span>Score</span>
-                    <!-- Actions col implicit -->
+            <!-- Leaderboard Manager View -->
+            <div id="manager-view" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <button id="back-to-dashboard" class="secondary-btn"
+                        style="flex: 0 1 auto; display: inline-flex; align-items: center; gap: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m15 18-6-6 6-6" />
+                        </svg>
+                        Back to Dashboard
+                    </button>
+                    <button id="open-live-view" class="secondary-btn" title="Open Live Leaderboard"
+                        style="flex: 0 1 auto; display: inline-flex; align-items: center; gap: 8px; background: rgba(59, 130, 246, 0.1); border-color: var(--accent-color); color: var(--accent-color);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                        Open Live Display
+                    </button>
                 </div>
-                <div id="leaderboard-list" class="leaderboard-list">
-                    <!-- Javascript will populate this -->
-                    <div class="loading">Loading scores...</div>
-                </div>
-            </section>
+                <h2 id="current-board-title" style="margin-bottom: 20px; color: var(--accent-color);">Board Name</h2>
+
+                <!-- Input Form -->
+                <section id="input" class="content-section">
+                    <div class="form-card">
+                        <h2>Manage Scores</h2>
+                        <form id="score-form">
+                            <div class="input-group">
+                                <label for="player-name">Player Name</label>
+                                <input type="text" id="player-name" placeholder="Enter name" required
+                                    autocomplete="off">
+                            </div>
+                            <div class="input-group">
+                                <label for="player-score">Score</label>
+                                <input type="number" id="player-score" placeholder="0" required>
+                            </div>
+                            <div class="actions">
+                                <button type="submit" id="add-btn" class="primary-btn" onclick="setAction('add')">Add to
+                                    Score (+)</button>
+                            </div>
+                            <p class="note">Enter a name and score. If the player exists, the score will be added to
+                                their
+                                total.</p>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Leaderboard -->
+                <section id="leaderboard" class="content-section">
+                    <div class="leaderboard-header editable">
+                        <span>Rank</span>
+                        <span>Player</span>
+                        <span>Score</span>
+                    </div>
+                    <div id="leaderboard-list" class="leaderboard-list">
+                        <div class="loading">Loading scores...</div>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
 
