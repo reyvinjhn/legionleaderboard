@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Test</h1>
+    <button id="getBtn">GET Data</button>
+    <button id="postBtn">POST Data (Add)</button>
+    <button id="deleteBtn">POST Data (Delete?)</button>
+    <div id="output"></div>
+
+    <script>
+        const URL = "https://script.google.com/macros/s/AKfycbwiiu2YLcFNaNASN_LxEe_NjtBPMd8ziiBeP7-BmzTqdsPZ3RpbLIngpAXgE5s0qPHI_A/exec";
+        const output = document.getElementById('output');
+
+        document.getElementById('getBtn').addEventListener('click', () => {
+            fetch(URL)
+                .then(res => res.json())
+                .then(data => output.innerText = "GET Result: " + JSON.stringify(data))
+                .catch(err => output.innerText = "GET Error: " + err);
+        });
+
+        document.getElementById('postBtn').addEventListener('click', () => {
+            const data = { name: "TestPlayer", score: 10 };
+            fetch(URL, {
+                method: "POST",
+                mode: "no-cors", // Google Apps Script often needs no-cors for simple posts or properly handled CORS
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            })
+            .then(res => {
+                output.innerText += "\nPOST Sent (no-cors mode, so opaque response).";
+                // Trigger a GET to see if it changed
+                setTimeout(() => document.getElementById('getBtn').click(), 2000);
+            })
+            .catch(err => output.innerText += "\nPOST Error: " + err);
+        });
+        
+         document.getElementById('deleteBtn').addEventListener('click', () => {
+            // Guessing delete format, usually sends action: delete
+            const data = { action: "delete", name: "TestPlayer" };
+            fetch(URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" }, // simpler header sometimes helps
+                body: JSON.stringify(data)
+            })
+            .then(() => {
+                 output.innerText += "\nDELETE Sent.";
+                 setTimeout(() => document.getElementById('getBtn').click(), 2000);
+            })
+            .catch(err => output.innerText += "\nDELETE Error: " + err);
+        });
+    </script>
+</body>
+</html>

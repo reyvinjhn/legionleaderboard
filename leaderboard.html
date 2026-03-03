@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Leaderboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Specific overrides for display-only page */
+        .app-container {
+            max-width: 800px;
+            /* Wider for display */
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin: 0;
+            line-height: 1;
+            background: none;
+            -webkit-text-fill-color: initial;
+            color: #ff0000;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+            /* Subtle red glow */
+        }
+
+        .app-logo {
+            filter: none;
+            mix-blend-mode: screen;
+        }
+
+        body {
+            background-color: #000000;
+            background-image: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <img src="https://media.licdn.com/dms/image/v2/D4E0BAQHaukh4a46n_g/company-logo_200_200/B4EZldZeULGcAM-/0/1758208583214/legiondotcc_logo?e=2147483647&v=beta&t=IZew3b4JwMzXY-RaVsTt8OcVwN9P0Ijrbb5a7e5u17g"
+                alt="Legion Logo" class="app-logo">
+            <h1>Legion Leaderboard</h1>
+        </header>
+
+        <main>
+            <!-- Leaderboard Tab Content (Always Visible) -->
+            <section id="leaderboard" class="tab-content active" style="display: block;">
+                <div class="leaderboard-header">
+                    <span>Rank</span>
+                    <span>Player</span>
+                    <span>Score</span>
+                </div>
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <div class="loading">Loading scores...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Auto-refresh every 10 seconds for the display page
+        setInterval(fetchLeaderboard, 10000);
+    </script>
+</body>
+
+</html>
