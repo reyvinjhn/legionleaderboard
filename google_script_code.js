@@ -3,7 +3,7 @@ var VALID_USERS = {
     "maaark": "legiondotcc",
     "jps": "legiondotcc",
     "josh": "legiondotcc",
-    "reyvinjohn": "legiondotcc"
+    "reyvinjohn": "legiondotrj"
 };
 
 // --- Helper: Action Logger ---
