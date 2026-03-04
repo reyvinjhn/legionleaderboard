@@ -50,14 +50,28 @@ function doGet(e) {
     // Action: list_boards
     if (e.parameter.action === 'list_boards') {
         var sheets = ss.getSheets();
-        var boardNames = [];
+        var boards = [];
         for (var i = 0; i < sheets.length; i++) {
-            var name = sheets[i].getName();
+            var sheet = sheets[i];
+            var name = sheet.getName();
             if (name !== '_ActivityLog') {
-                boardNames.push(name);
+                // Fetch the creator from Developer Metadata
+                var creator = "";
+                var metadata = sheet.getDeveloperMetadata();
+                for (var j = 0; j < metadata.length; j++) {
+                    if (metadata[j].getKey() === "creator") {
+                        creator = metadata[j].getValue();
+                        break;
+                    }
+                }
+
+                boards.push({
+                    name: name,
+                    creator: creator
+                });
             }
         }
-        return ContentService.createTextOutput(JSON.stringify({ boards: boardNames }))
+        return ContentService.createTextOutput(JSON.stringify({ boards: boards }))
             .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -131,6 +145,9 @@ function doPost(e) {
             // Setup headers
             sheet.appendRow(["Player Name", "Score", "Emblems"]);
             sheet.getRange("A1:C1").setFontWeight("bold");
+
+            // Save creator directly to sheet metadata
+            sheet.addDeveloperMetadata("creator", username);
 
             // Log creation
             logAction(ss, username, "Created Board", boardName, "");

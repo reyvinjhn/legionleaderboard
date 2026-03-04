@@ -169,11 +169,24 @@ function renderBoards(boards) {
     }
 
     boardsList.innerHTML = '';
-    boards.forEach(boardName => {
+    boards.forEach(boardInfo => {
+        // Fallback for older data format (array of strings)
+        const isString = typeof boardInfo === 'string';
+        const boardName = isString ? boardInfo : boardInfo.name;
+        const creator = isString ? "" : (boardInfo.creator || "");
+
+        let creatorHtml = '';
+        if (creator) {
+            creatorHtml = `<div style="font-size: 0.8rem; color: var(--accent-color); margin-top: 5px;">Created by: ${escapeHtml(creator)}</div>`;
+        } else {
+            creatorHtml = `<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 5px;">Created by: Unknown</div>`;
+        }
+
         const card = document.createElement('div');
         card.className = 'board-card';
         card.innerHTML = `
             <div class="board-title">${escapeHtml(boardName)}</div>
+            ${creatorHtml}
             <div class="note" style="margin-top: 5px;">Click to manage</div>
             <button class="board-delete-btn" title="Delete Board" onclick="event.stopPropagation(); deleteBoard('${escapeHtml(boardName).replace(/'/g, "\\'")}')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
