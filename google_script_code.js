@@ -51,13 +51,15 @@ function doGet(e) {
     if (e.parameter.action === 'list_boards') {
         var sheets = ss.getSheets();
         var boards = [];
-        var props = PropertiesService.getDocumentProperties();
+        // Fetch all properties at once to avoid O(N) latency in the loop
+        var allProps = PropertiesService.getDocumentProperties().getProperties();
+
         for (var i = 0; i < sheets.length; i++) {
             var sheet = sheets[i];
             var name = sheet.getName();
             if (name !== '_ActivityLog') {
-                // Fetch the creator from Document Properties
-                var creator = props.getProperty("creator_" + name) || "";
+                // Fetch the creator from memory dictionary
+                var creator = allProps["creator_" + name] || "";
 
                 boards.push({
                     name: name,
