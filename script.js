@@ -1,10 +1,11 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbx-sv0nQvzxMgXY37J_UKTGFyHymMOX7RTREgUoDXSUC5o7PE_yIualu2uqS4CSUhkl/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwWe0YuG-bNyv-ZQXic77KEKA2nrQP0VRMCkXONwoR9IQa1-V89cHyQzQ26TsWhfhwM/exec";
 
 // DOM Elements
 const scoreForm = document.getElementById('score-form');
 const leaderboardList = document.getElementById('leaderboard-list');
 
 // --- Dashboard Elements ---
+const loginView = document.getElementById('login-view');
 const dashboardView = document.getElementById('dashboard-view');
 const managerView = document.getElementById('manager-view');
 const boardsList = document.getElementById('boards-list');
@@ -13,12 +14,17 @@ const currentBoardTitle = document.getElementById('current-board-title');
 const backBtn = document.getElementById('back-to-dashboard');
 
 let currentBoard = null;
+let currentPassword = '';
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
     // Check if we are on the dashboard/manager page
     if (dashboardView && managerView) {
-        fetchBoards();
+        // Bind Login Form
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', handleLogin);
+        }
 
         // Bind Create Form
         if (createBoardForm) {
@@ -61,6 +67,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+// --- Login Logic ---
+async function handleLogin(e) {
+    e.preventDefault();
+    const pwdInput = document.getElementById('admin-password');
+    const pwd = pwdInput.value;
+    const btn = document.getElementById('login-btn');
+    const errorDiv = document.getElementById('login-error');
+
+    btn.innerText = "Verifying...";
+    btn.disabled = true;
+    errorDiv.style.display = 'none';
+
+    try {
+        const response = await fetch(`${API_URL}?action=verify_password&password=${encodeURIComponent(pwd)}`);
+        const textData = await response.text();
+        let data = { result: 'error', error: 'Invalid response from server' };
+        try {
+            data = JSON.parse(textData);
+        } catch (err) {
+            console.warn("Could not parse JSON. Ensure backend sends valid JSON response.", err);
+        }
+
+        if (data.result === 'success') {
+            currentPassword = pwd;
+            if (loginView) loginView.style.display = 'none';
+            if (dashboardView) dashboardView.style.display = 'block';
+            fetchBoards();
+        } else {
+            errorDiv.style.display = 'block';
+            errorDiv.innerText = data.error || 'Invalid password';
+            btn.innerText = "Login";
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error(e);
+        errorDiv.style.display = 'block';
+        errorDiv.innerText = 'Connection error. Please try again.';
+        btn.innerText = "Login";
+        btn.disabled = false;
+    }
+}
 
 // --- Dashboard Logic ---
 
@@ -137,7 +185,7 @@ async function handleCreateBoard(e) {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'create_board', board: boardName })
+            body: JSON.stringify({ action: 'create_board', board: boardName, password: currentPassword })
         });
 
         // Optimistically wait and refresh
@@ -165,7 +213,7 @@ async function deleteBoard(boardName) {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'delete_board', board: boardName })
+                body: JSON.stringify({ action: 'delete_board', board: boardName, password: currentPassword })
             });
             setTimeout(fetchBoards, 1500);
         } catch (error) {
@@ -381,7 +429,7 @@ window.submitEmblem = async (emblem) => {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ board: currentBoard, name: name, emblem: emblem, action: 'add_emblem' })
+            body: JSON.stringify({ board: currentBoard, name: name, emblem: emblem, action: 'add_emblem', password: currentPassword })
         });
 
         // Loop refresh
@@ -408,7 +456,7 @@ async function deletePlayer(name, btnElement) {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ board: currentBoard, name: name, score: 0, action: 'delete' })
+                body: JSON.stringify({ board: currentBoard, name: name, score: 0, action: 'delete', password: currentPassword })
             });
 
             // Refresh
@@ -520,7 +568,7 @@ if (scoreForm) {
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8',
                 },
-                body: JSON.stringify({ board: currentBoard, name, score: finalScorePayload, action: currentAction })
+                body: JSON.stringify({ board: currentBoard, name, score: finalScorePayload, action: currentAction, password: currentPassword })
             });
 
             primaryBtn.innerText = "Success!";

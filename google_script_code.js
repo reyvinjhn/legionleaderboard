@@ -1,6 +1,19 @@
+var ADMIN_PASSWORD = "legiondotcc"; // Set your desired password here
+
 function doGet(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    
+
+    // Action: verify_password
+    if (e.parameter.action === 'verify_password') {
+        if (e.parameter.password === ADMIN_PASSWORD) {
+            return ContentService.createTextOutput(JSON.stringify({ result: "success" }))
+                .setMimeType(ContentService.MimeType.JSON);
+        } else {
+            return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Invalid password" }))
+                .setMimeType(ContentService.MimeType.JSON);
+        }
+    }
+
     // Action: list_boards
     if (e.parameter.action === 'list_boards') {
         var sheets = ss.getSheets();
@@ -11,19 +24,19 @@ function doGet(e) {
         return ContentService.createTextOutput(JSON.stringify({ boards: boardNames }))
             .setMimeType(ContentService.MimeType.JSON);
     }
-    
+
     // Default GET: Fetch board data
     var boardName = e.parameter.board;
     var sheet;
-    
+
     if (boardName) {
         sheet = ss.getSheetByName(boardName);
     } else {
         sheet = ss.getActiveSheet(); // fallback
     }
-    
+
     if (!sheet) {
-         return ContentService.createTextOutput(JSON.stringify({ error: "Board not found." }))
+        return ContentService.createTextOutput(JSON.stringify({ error: "Board not found." }))
             .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -60,36 +73,43 @@ function doPost(e) {
         }
 
         var action = data.action || 'add';
+        var password = data.password;
+
+        if (password !== ADMIN_PASSWORD) {
+            return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Unauthorized access: Invalid password" }))
+                .setMimeType(ContentService.MimeType.JSON);
+        }
+
         var boardName = data.board;
         var sheet;
-        
+
         // --- Dashboard Actions ---
         if (action === 'create_board') {
             if (!boardName) throw new Error("No board name provided.");
             if (ss.getSheetByName(boardName)) {
-                 return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Board already exists." }))
+                return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Board already exists." }))
                     .setMimeType(ContentService.MimeType.JSON);
             }
             sheet = ss.insertSheet(boardName);
             // Setup headers
             sheet.appendRow(["Player Name", "Score", "Emblems"]);
             sheet.getRange("A1:C1").setFontWeight("bold");
-            
+
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "create_board", board: boardName }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
-        
+
         if (action === 'delete_board') {
             if (!boardName) throw new Error("No board name provided.");
             sheet = ss.getSheetByName(boardName);
             if (!sheet) throw new Error("Board not found.");
-            
+
             // Prevent deleting the very last sheet
             if (ss.getSheets().length <= 1) {
                 return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Cannot delete the only remaining board." }))
                     .setMimeType(ContentService.MimeType.JSON);
             }
-            
+
             ss.deleteSheet(sheet);
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "delete_board", board: boardName }))
                 .setMimeType(ContentService.MimeType.JSON);
@@ -102,7 +122,7 @@ function doPost(e) {
         } else {
             sheet = ss.getActiveSheet();
         }
-        
+
         if (!sheet) {
             return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Board not found" }))
                 .setMimeType(ContentService.MimeType.JSON);
