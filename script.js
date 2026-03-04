@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwWe0YuG-bNyv-ZQXic77KEKA2nrQP0VRMCkXONwoR9IQa1-V89cHyQzQ26TsWhfhwM/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw5NqDwMyRg3OzUPnuqSpr3c-o7Riaj_or3wi5FMSwZ0LvGHgz7VTsBqqWj2nXNKQ3N/exec";
 
 // DOM Elements
 const scoreForm = document.getElementById('score-form');
@@ -15,6 +15,7 @@ const backBtn = document.getElementById('back-to-dashboard');
 
 let currentBoard = null;
 let currentPassword = '';
+let currentUsername = '';
 
 // Initial Load
 document.addEventListener('DOMContentLoaded', () => {
@@ -71,7 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- Login Logic ---
 async function handleLogin(e) {
     e.preventDefault();
+    const userInp = document.getElementById('admin-username');
     const pwdInput = document.getElementById('admin-password');
+    const username = userInp.value.trim().toLowerCase();
     const pwd = pwdInput.value;
     const btn = document.getElementById('login-btn');
     const errorDiv = document.getElementById('login-error');
@@ -81,7 +84,7 @@ async function handleLogin(e) {
     errorDiv.style.display = 'none';
 
     try {
-        const response = await fetch(`${API_URL}?action=verify_password&password=${encodeURIComponent(pwd)}`);
+        const response = await fetch(`${API_URL}?action=verify_password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(pwd)}`);
         const textData = await response.text();
         let data = { result: 'error', error: 'Invalid response from server' };
         try {
@@ -92,12 +95,24 @@ async function handleLogin(e) {
 
         if (data.result === 'success') {
             currentPassword = pwd;
+            currentUsername = username;
+
+            // Update UI
             if (loginView) loginView.style.display = 'none';
             if (dashboardView) dashboardView.style.display = 'block';
+
+            // Show logged in user
+            const userDisplay = document.getElementById('user-display');
+            const currentUserSpan = document.getElementById('current-username');
+            if (userDisplay && currentUserSpan) {
+                currentUserSpan.innerText = username;
+                userDisplay.style.display = 'block';
+            }
+
             fetchBoards();
         } else {
             errorDiv.style.display = 'block';
-            errorDiv.innerText = data.error || 'Invalid password';
+            errorDiv.innerText = data.error || 'Invalid credentials';
             btn.innerText = "Login";
             btn.disabled = false;
         }
@@ -185,7 +200,7 @@ async function handleCreateBoard(e) {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: 'create_board', board: boardName, password: currentPassword })
+            body: JSON.stringify({ action: 'create_board', board: boardName, username: currentUsername, password: currentPassword })
         });
 
         // Optimistically wait and refresh
@@ -213,7 +228,7 @@ async function deleteBoard(boardName) {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'delete_board', board: boardName, password: currentPassword })
+                body: JSON.stringify({ action: 'delete_board', board: boardName, username: currentUsername, password: currentPassword })
             });
             setTimeout(fetchBoards, 1500);
         } catch (error) {
@@ -429,7 +444,7 @@ window.submitEmblem = async (emblem) => {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ board: currentBoard, name: name, emblem: emblem, action: 'add_emblem', password: currentPassword })
+            body: JSON.stringify({ board: currentBoard, name: name, emblem: emblem, action: 'add_emblem', username: currentUsername, password: currentPassword })
         });
 
         // Loop refresh
@@ -456,7 +471,7 @@ async function deletePlayer(name, btnElement) {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ board: currentBoard, name: name, score: 0, action: 'delete', password: currentPassword })
+                body: JSON.stringify({ board: currentBoard, name: name, score: 0, action: 'delete', username: currentUsername, password: currentPassword })
             });
 
             // Refresh
@@ -568,7 +583,7 @@ if (scoreForm) {
                 headers: {
                     'Content-Type': 'text/plain;charset=utf-8',
                 },
-                body: JSON.stringify({ board: currentBoard, name, score: finalScorePayload, action: currentAction, password: currentPassword })
+                body: JSON.stringify({ board: currentBoard, name, score: finalScorePayload, action: currentAction, username: currentUsername, password: currentPassword })
             });
 
             primaryBtn.innerText = "Success!";

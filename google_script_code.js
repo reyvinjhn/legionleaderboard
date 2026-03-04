@@ -1,15 +1,48 @@
-var ADMIN_PASSWORD = "legiondotcc"; // Set your desired password here
+var VALID_USERS = {
+    "james": "legiondotcc",
+    "maaark": "legiondotcc",
+    "jps": "legiondotcc",
+    "josh": "legiondotcc",
+    "reyvinjohn": "legiondotcc"
+};
+
+// --- Helper: Action Logger ---
+function logAction(ss, username, action, boardName, details) {
+    try {
+        var logSheetName = '_ActivityLog';
+        var logSheet = ss.getSheetByName(logSheetName);
+
+        // Create the log sheet if it doesn't exist
+        if (!logSheet) {
+            logSheet = ss.insertSheet(logSheetName);
+            logSheet.appendRow(["Timestamp", "Username", "Action", "Board", "Details"]);
+            logSheet.getRange("A1:E1").setFontWeight("bold");
+            logSheet.setFrozenRows(1);
+            // Optional: Hide the log sheet so it doesn't clutter the UI for sheet owners
+            logSheet.hideSheet();
+        }
+
+        var timestamp = new Date();
+        logSheet.appendRow([timestamp, username, action, boardName || "N/A", details || ""]);
+    } catch (e) {
+        // Silently fail logging rather than breaking the main app
+        console.error("Failed to log action: ", e);
+    }
+}
 
 function doGet(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     // Action: verify_password
     if (e.parameter.action === 'verify_password') {
-        if (e.parameter.password === ADMIN_PASSWORD) {
+        var username = e.parameter.username;
+        var password = e.parameter.password;
+
+        if (username && VALID_USERS[username] === password) {
             return ContentService.createTextOutput(JSON.stringify({ result: "success" }))
                 .setMimeType(ContentService.MimeType.JSON);
         } else {
-            return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Invalid password" }))
+            return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Invalid username or password" }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
     }
@@ -19,7 +52,10 @@ function doGet(e) {
         var sheets = ss.getSheets();
         var boardNames = [];
         for (var i = 0; i < sheets.length; i++) {
-            boardNames.push(sheets[i].getName());
+            var name = sheets[i].getName();
+            if (name !== '_ActivityLog') {
+                boardNames.push(name);
+            }
         }
         return ContentService.createTextOutput(JSON.stringify({ boards: boardNames }))
             .setMimeType(ContentService.MimeType.JSON);
@@ -73,10 +109,11 @@ function doPost(e) {
         }
 
         var action = data.action || 'add';
+        var username = data.username;
         var password = data.password;
 
-        if (password !== ADMIN_PASSWORD) {
-            return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Unauthorized access: Invalid password" }))
+        if (!username || VALID_USERS[username] !== password) {
+            return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Unauthorized access: Invalid credentials" }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
 
@@ -95,6 +132,9 @@ function doPost(e) {
             sheet.appendRow(["Player Name", "Score", "Emblems"]);
             sheet.getRange("A1:C1").setFontWeight("bold");
 
+            // Log creation
+            logAction(ss, username, "Created Board", boardName, "");
+
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "create_board", board: boardName }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
@@ -104,13 +144,18 @@ function doPost(e) {
             sheet = ss.getSheetByName(boardName);
             if (!sheet) throw new Error("Board not found.");
 
-            // Prevent deleting the very last sheet
-            if (ss.getSheets().length <= 1) {
+            // Prevent deleting the very last sheet (or if the only sheets left are the board and the log)
+            var visibleSheetsCount = ss.getSheets().filter(function (s) { return s.getName() !== '_ActivityLog'; }).length;
+            if (visibleSheetsCount <= 1) {
                 return ContentService.createTextOutput(JSON.stringify({ result: "error", error: "Cannot delete the only remaining board." }))
                     .setMimeType(ContentService.MimeType.JSON);
             }
 
             ss.deleteSheet(sheet);
+
+            // Log deletion
+            logAction(ss, username, "Deleted Board", boardName, "");
+
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "delete_board", board: boardName }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
@@ -152,6 +197,10 @@ function doPost(e) {
                     deletedCount++;
                 }
             }
+
+            // Log delete
+            logAction(ss, username, "Deleted Player", boardName, "Player: " + targetName);
+
             return ContentService.createTextOutput(JSON.stringify({ result: "success", message: "Deleted " + deletedCount }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
@@ -194,6 +243,9 @@ function doPost(e) {
             var combinedEmblems = uniqueEmblems.join(",");
             sheet.appendRow([targetName, score, combinedEmblems]);
 
+            // Log set score
+            logAction(ss, username, "Set Score", boardName, "Player: " + targetName + ", New Score: " + score);
+
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "set", score: score }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
@@ -202,6 +254,9 @@ function doPost(e) {
             // Update Strategy: Append a new row with the emblem and NO score.
             sheet.appendRow([targetName, "", emblem]);
 
+            // Log emblem
+            logAction(ss, username, "Awarded Emblem", boardName, "Player: " + targetName + ", Emblem: " + emblem);
+
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "add_emblem", emblem: emblem }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
@@ -209,6 +264,10 @@ function doPost(e) {
         else {
             // 'add' (Score add)
             sheet.appendRow([targetName, score, ""]); // Add empty string for emblem column
+
+            // Log add score
+            logAction(ss, username, "Added Score", boardName, "Player: " + targetName + ", Added: " + score);
+
             return ContentService.createTextOutput(JSON.stringify({ result: "success", action: "add", added: score }))
                 .setMimeType(ContentService.MimeType.JSON);
         }
