@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbw5NqDwMyRg3OzUPnuqSpr3c-o7Riaj_or3wi5FMSwZ0LvGHgz7VTsBqqWj2nXNKQ3N/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzG2uVap8ONl06Tn67x-z92rbJA-LZ2L2uH7ika-dmYxwXsb8u6XwYmhGOkvIpwqNUF/exec";
 
 // DOM Elements
 const scoreForm = document.getElementById('score-form');
