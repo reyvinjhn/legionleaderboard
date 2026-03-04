@@ -51,19 +51,13 @@ function doGet(e) {
     if (e.parameter.action === 'list_boards') {
         var sheets = ss.getSheets();
         var boards = [];
+        var props = PropertiesService.getDocumentProperties();
         for (var i = 0; i < sheets.length; i++) {
             var sheet = sheets[i];
             var name = sheet.getName();
             if (name !== '_ActivityLog') {
-                // Fetch the creator from Developer Metadata
-                var creator = "";
-                var metadata = sheet.getDeveloperMetadata();
-                for (var j = 0; j < metadata.length; j++) {
-                    if (metadata[j].getKey() === "creator") {
-                        creator = metadata[j].getValue();
-                        break;
-                    }
-                }
+                // Fetch the creator from Document Properties
+                var creator = props.getProperty("creator_" + name) || "";
 
                 boards.push({
                     name: name,
@@ -146,8 +140,8 @@ function doPost(e) {
             sheet.appendRow(["Player Name", "Score", "Emblems"]);
             sheet.getRange("A1:C1").setFontWeight("bold");
 
-            // Save creator directly to sheet metadata
-            sheet.addDeveloperMetadata("creator", username);
+            // Save creator directly to Document Properties
+            PropertiesService.getDocumentProperties().setProperty("creator_" + boardName, username);
 
             // Log creation
             logAction(ss, username, "Created Board", boardName, "");
@@ -169,6 +163,9 @@ function doPost(e) {
             }
 
             ss.deleteSheet(sheet);
+
+            // Delete creator from properties
+            PropertiesService.getDocumentProperties().deleteProperty("creator_" + boardName);
 
             // Log deletion
             logAction(ss, username, "Deleted Board", boardName, "");
