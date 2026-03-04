@@ -21,10 +21,19 @@ let currentUsername = '';
 document.addEventListener('DOMContentLoaded', () => {
     // Check if we are on the dashboard/manager page
     if (dashboardView && managerView) {
+        // Try auto-login first
+        checkSavedLogin();
+
         // Bind Login Form
         const loginForm = document.getElementById('login-form');
         if (loginForm) {
             loginForm.addEventListener('submit', handleLogin);
+        }
+
+        // Bind Logout Button
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', handleLogout);
         }
 
         // Bind Create Form
@@ -97,6 +106,10 @@ async function handleLogin(e) {
             currentPassword = pwd;
             currentUsername = username;
 
+            // Save to localStorage
+            localStorage.setItem('leaderboardUser', username);
+            localStorage.setItem('leaderboardPwd', pwd);
+
             // Update UI
             if (loginView) loginView.style.display = 'none';
             if (dashboardView) dashboardView.style.display = 'block';
@@ -106,7 +119,7 @@ async function handleLogin(e) {
             const currentUserSpan = document.getElementById('current-username');
             if (userDisplay && currentUserSpan) {
                 currentUserSpan.innerText = username;
-                userDisplay.style.display = 'block';
+                userDisplay.style.display = 'flex';
             }
 
             fetchBoards();
@@ -123,6 +136,69 @@ async function handleLogin(e) {
         btn.innerText = "Login";
         btn.disabled = false;
     }
+}
+
+// --- Logout / Auto-Login Logic ---
+async function checkSavedLogin() {
+    const savedUser = localStorage.getItem('leaderboardUser');
+    const savedPwd = localStorage.getItem('leaderboardPwd');
+
+    if (savedUser && savedPwd) {
+        if (loginView) loginView.style.display = 'none';
+
+        // Show silent loading state or skeleton UI if needed
+        boardsList.innerHTML = '<div class="loading">Restoring session...</div>';
+        if (dashboardView) dashboardView.style.display = 'block';
+
+        try {
+            const response = await fetch(`${API_URL}?action=verify_password&username=${encodeURIComponent(savedUser)}&password=${encodeURIComponent(savedPwd)}`);
+            const data = await response.json();
+
+            if (data.result === 'success') {
+                currentPassword = savedPwd;
+                currentUsername = savedUser;
+
+                const userDisplay = document.getElementById('user-display');
+                const currentUserSpan = document.getElementById('current-username');
+                if (userDisplay && currentUserSpan) {
+                    currentUserSpan.innerText = savedUser;
+                    userDisplay.style.display = 'flex';
+                }
+
+                fetchBoards();
+            } else {
+                // Invalid or expired credentials
+                handleLogout();
+            }
+        } catch (e) {
+            console.error("Session restore failed", e);
+            handleLogout();
+        }
+    }
+}
+
+function handleLogout() {
+    // Clear State
+    currentPassword = '';
+    currentUsername = '';
+    currentBoard = null;
+    localStorage.removeItem('leaderboardUser');
+    localStorage.removeItem('leaderboardPwd');
+
+    // Clear UI
+    if (dashboardView) dashboardView.style.display = 'none';
+    if (managerView) managerView.style.display = 'none';
+
+    const userDisplay = document.getElementById('user-display');
+    if (userDisplay) userDisplay.style.display = 'none';
+
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) loginForm.reset();
+
+    const errorDiv = document.getElementById('login-error');
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    if (loginView) loginView.style.display = 'block';
 }
 
 // --- Dashboard Logic ---

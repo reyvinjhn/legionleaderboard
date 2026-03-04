@@ -18,8 +18,11 @@
                 <h1>Legion Leaderboard</h1>
             </div>
             <div id="user-display"
-                style="display: none; font-size: 0.9rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--glass-border);">
-                Logged in as: <span id="current-username" style="color: var(--accent-color); font-weight: bold;"></span>
+                style="display: none; font-size: 0.9rem; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--glass-border); align-items: center; gap: 10px;">
+                <span>Logged in as: <span id="current-username"
+                        style="color: var(--accent-color); font-weight: bold;"></span></span>
+                <button id="logout-btn"
+                    style="background: none; border: none; color: #ef4444; font-size: 0.8rem; cursor: pointer; text-decoration: underline; padding: 0;">Logout</button>
             </div>
         </header>
 
